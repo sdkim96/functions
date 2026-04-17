@@ -82,12 +82,15 @@ async def _run() -> int:
     logging.info("캐시 히트: %d건, 미스: %d건", len(cached), len(all_urls) - len(cached))
 
     uncached_urls = [u for u in all_urls if u not in cached]
-    if uncached_urls:
-        short_results = await shorten_batch(uncached_urls, delay=1.5)
-        new_mappings = {orig: short for orig, short in zip(uncached_urls, short_results)}
+    BATCH_SIZE = 20
+    for i in range(0, len(uncached_urls), BATCH_SIZE):
+        batch = uncached_urls[i:i + BATCH_SIZE]
+        short_results = await shorten_batch(batch, delay=1.5)
+        new_mappings = {orig: short for orig, short in zip(batch, short_results)}
         with Session(sm) as session:
             cache_urls(session, new_mappings)
         cached.update(new_mappings)
+        logging.info("캐시 저장: %d/%d건", min(i + BATCH_SIZE, len(uncached_urls)), len(uncached_urls))
 
     rows = []
     for item in items:
