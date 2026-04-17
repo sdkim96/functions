@@ -1,0 +1,38 @@
+name: Deploy bizinfo to Azure Functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "bizinfo/**"
+      - "common/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          cd bizinfo
+          pip install -r requirements.txt
+
+      - name: Prepare deployment package
+        run: |
+          mkdir -p deploy
+          cp -r bizinfo/* deploy/
+          cp -r common deploy/common
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ vars.AZURE_FUNCTION_APP_NAME }}
+          package: deploy
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
