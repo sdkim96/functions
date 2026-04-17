@@ -95,7 +95,7 @@ async def _run() -> int:
 
 
 @app.timer_trigger(
-    schedule="0 0 0 * * *",
+    schedule="0 0 * * * *",
     arg_name="timer",
     run_on_startup=False,
 )
