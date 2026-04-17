@@ -7,6 +7,8 @@ on:
     paths:
       - "bizinfo/**"
       - "common/**"
+      - ".github/workflows/deploy-bizinfo.yml"
+  workflow_dispatch:
 
 permissions:
   id-token: write
