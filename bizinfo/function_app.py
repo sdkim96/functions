@@ -12,12 +12,14 @@ from datetime import datetime
 import azure.functions as func
 import pydantic
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+_dir = os.path.dirname(__file__)
+sys.path.insert(0, _dir)
+sys.path.insert(0, os.path.join(_dir, ".."))
 
 from common.http.http import get
 from common.db.db import Session, engine, sessionmaker
 from common.url.shorten import shorten_batch
-from bizinfo.models import migrate, upsert
+from models import migrate, upsert
 
 app = func.FunctionApp()
 
