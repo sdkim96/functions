@@ -99,7 +99,7 @@ async def _run() -> int:
 @app.timer_trigger(
     schedule="0 0 * * * *",
     arg_name="timer",
-    run_on_startup=False,
+    run_on_startup=True,
 )
 async def fetch_bizinfo(timer: func.TimerRequest) -> None:
     logging.info("Bizinfo 공고 수집 시작")
