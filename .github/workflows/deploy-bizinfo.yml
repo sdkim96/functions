@@ -25,16 +25,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
-        run: |
-          cd bizinfo
-          pip install -r requirements.txt
-
       - name: Prepare deployment package
         run: |
           mkdir -p deploy
           cp -r bizinfo/* deploy/
           cp -r common deploy/common
+
+      - name: Install dependencies into package
+        run: |
+          cd deploy
+          pip install --target=".python_packages/lib/site-packages" -r requirements.txt
 
       - name: Azure Login
         uses: azure/login@v2
