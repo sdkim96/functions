@@ -7,23 +7,32 @@ from common.http.http import get_raw
 
 logger = logging.getLogger(__name__)
 
+MAX_RETRIES = 3
+
 
 async def shorten(url: str) -> str:
-    """URL 단축. 실패 시 원본 반환."""
+    """URL 단축. 429 시 backoff 재시도. 실패 시 원본 반환."""
     if not url:
         return url
 
-    short = await _try_dagd(url)
-    if not short:
-        short = await _try_ulvis(url)
-    if not short:
-        logger.warning("URL 단축 모두 실패, 원본 사용: %s", url[:80])
-        return url
+    for attempt in range(MAX_RETRIES):
+        short = await _try_dagd(url)
+        if short:
+            return short
+        if attempt < MAX_RETRIES - 1:
+            wait = 2 ** (attempt + 1)
+            logger.info("da.gd 재시도 대기: %d초", wait)
+            await asyncio.sleep(wait)
 
-    return short
+    short = await _try_ulvis(url)
+    if short:
+        return short
+
+    logger.warning("URL 단축 모두 실패, 원본 사용: %s", url[:80])
+    return url
 
 
-async def shorten_batch(urls: list[str], delay: float = 1.0) -> list[str]:
+async def shorten_batch(urls: list[str], delay: float = 1.5) -> list[str]:
     """여러 URL 일괄 단축"""
     results = []
     for i, url in enumerate(urls, 1):

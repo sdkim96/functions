@@ -75,16 +75,30 @@ async def _run() -> int:
     migrate(eng)
     sm = sessionmaker(eng)
 
-    short_urls = await shorten_batch([i.pblancUrl for i in items], delay=1.0)
+    today_items = [i for i in items if i.creatPnttm and i.creatPnttm.startswith(today)]
+    other_items = [i for i in items if i not in today_items]
+    logging.info("오늘 등록 공고: %d건, 기존 공고: %d건", len(today_items), len(other_items))
+
+    today_urls = await shorten_batch([i.pblancUrl for i in today_items], delay=1.5)
 
     rows = []
-    for item, short_url in zip(items, short_urls):
+    for item, short_url in zip(today_items, today_urls):
         rows.append(dict(
             pblanc_id=item.pblancId,
             inst=item.jrsdInsttNm or "",
             type=item.pldirSportRealmLclasCodeNm or "",
             title=item.pblancNm,
             url=short_url,
+            hashtags=item.hashtags or "",
+            created_at=(item.creatPnttm or today)[:10],
+        ))
+    for item in other_items:
+        rows.append(dict(
+            pblanc_id=item.pblancId,
+            inst=item.jrsdInsttNm or "",
+            type=item.pldirSportRealmLclasCodeNm or "",
+            title=item.pblancNm,
+            url=item.pblancUrl,
             hashtags=item.hashtags or "",
             created_at=(item.creatPnttm or today)[:10],
         ))
