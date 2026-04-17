@@ -31,11 +31,6 @@ jobs:
           cp -r bizinfo/* deploy/
           cp -r common deploy/common
 
-      - name: Install dependencies into package
-        run: |
-          cd deploy
-          pip install --target=".python_packages/lib/site-packages" -r requirements.txt
-
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -43,8 +38,10 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Install Azure Functions Core Tools
+        run: npm install -g azure-functions-core-tools@4
+
       - name: Deploy to Azure Functions
-        uses: Azure/functions-action@v1
-        with:
-          app-name: ${{ vars.AZURE_FUNCTION_APP_NAME }}
-          package: deploy
+        run: |
+          cd deploy
+          func azure functionapp publish ${{ vars.AZURE_FUNCTION_APP_NAME }} --python
