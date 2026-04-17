@@ -19,8 +19,39 @@ class SupportProgram(Base):
     created_at: orm.Mapped[str] = orm.mapped_column(sql.String, comment="등록일자")
 
 
+class UrlCache(Base):
+    __tablename__ = "url_cache"
+
+    original_url: orm.Mapped[str] = orm.mapped_column(sql.String, primary_key=True)
+    short_url: orm.Mapped[str] = orm.mapped_column(sql.String)
+
+
 def migrate(engine: sql.engine.Engine):
     Base.metadata.create_all(engine)
+
+
+def get_cached_urls(session: orm.Session, urls: list[str]) -> dict[str, str]:
+    """캐시된 short URL을 dict로 반환. {original_url: short_url}"""
+    if not urls:
+        return {}
+    rows = session.query(UrlCache).filter(UrlCache.original_url.in_(urls)).all()
+    return {r.original_url: r.short_url for r in rows}
+
+
+def cache_urls(session: orm.Session, mappings: dict[str, str]):
+    """short URL 결과를 캐시에 저장."""
+    from sqlalchemy.dialects.postgresql import insert
+
+    if not mappings:
+        return
+    items = [{"original_url": k, "short_url": v} for k, v in mappings.items()]
+    stmt = insert(UrlCache).values(items)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["original_url"],
+        set_={"short_url": stmt.excluded.short_url},
+    )
+    session.execute(stmt)
+    session.commit()
 
 
 def upsert(session: orm.Session, items: list[dict]):

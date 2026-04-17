@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(_dir, ".."))
 from common.http.http import get
 from common.db.db import Session, engine, sessionmaker
 from common.url.shorten import shorten_batch
-from models import migrate, upsert
+from models import migrate, upsert, get_cached_urls, cache_urls
 
 app = func.FunctionApp()
 
@@ -75,30 +75,28 @@ async def _run() -> int:
     migrate(eng)
     sm = sessionmaker(eng)
 
-    today_items = [i for i in items if i.creatPnttm and i.creatPnttm.startswith(today)]
-    other_items = [i for i in items if i not in today_items]
-    logging.info("오늘 등록 공고: %d건, 기존 공고: %d건", len(today_items), len(other_items))
+    all_urls = [i.pblancUrl for i in items]
 
-    today_urls = await shorten_batch([i.pblancUrl for i in today_items], delay=1.5)
+    with Session(sm) as session:
+        cached = get_cached_urls(session, all_urls)
+    logging.info("캐시 히트: %d건, 미스: %d건", len(cached), len(all_urls) - len(cached))
+
+    uncached_urls = [u for u in all_urls if u not in cached]
+    if uncached_urls:
+        short_results = await shorten_batch(uncached_urls, delay=1.5)
+        new_mappings = {orig: short for orig, short in zip(uncached_urls, short_results)}
+        with Session(sm) as session:
+            cache_urls(session, new_mappings)
+        cached.update(new_mappings)
 
     rows = []
-    for item, short_url in zip(today_items, today_urls):
+    for item in items:
         rows.append(dict(
             pblanc_id=item.pblancId,
             inst=item.jrsdInsttNm or "",
             type=item.pldirSportRealmLclasCodeNm or "",
             title=item.pblancNm,
-            url=short_url,
-            hashtags=item.hashtags or "",
-            created_at=(item.creatPnttm or today)[:10],
-        ))
-    for item in other_items:
-        rows.append(dict(
-            pblanc_id=item.pblancId,
-            inst=item.jrsdInsttNm or "",
-            type=item.pldirSportRealmLclasCodeNm or "",
-            title=item.pblancNm,
-            url=item.pblancUrl,
+            url=cached.get(item.pblancUrl, item.pblancUrl),
             hashtags=item.hashtags or "",
             created_at=(item.creatPnttm or today)[:10],
         ))
